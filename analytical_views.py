@@ -6,28 +6,27 @@ import numpy as np
 from connection import create_connection
 from connection import res_fn
 
-#Read the route csv file
-route_df=pd.read_csv(r"D:\VS_CODE\Logistics\routes.csv")
-print(route_df)
+#Read the  data from route sql table
+conn=create_connection()
+query="select * from routes"
+results,route_df=res_fn(conn,query)
+
+
+
 #FIND THE AVERAGE DELIVERY TIME PER ROUTE
+
 def aver_del_time_per_route():
    conn=create_connection()
-   query="""select r.route_id,r.origin,r.destination,avg(datediff(s.delivery_date,s.order_date))  as Average_Delivery_Days 
+   query="""select r.route_id,r.origin,r.destination,avg(datediff(s.delivery_date,s.order_date))  as Average_Delivery_Days_Per_Route
    from routes r join shipments s 
    on r.origin =s.origin and r.destination=s.destination 
    where s.order_date is not null and 
-         s.delivery_date is not null
+         s.delivery_date is not null and s.status='Delivered'
    group by r.route_id,r.origin,r.destination
-   order by Average_Delivery_Days desc"""
+   order by Average_Delivery_Days_Per_Route desc"""
    results,df=res_fn(conn,query)
-   df1=df.head(10)
-   fig,ax=plt.subplots(figsize=(8,6))
-   sns.barplot(data=df1,x="route_id",y="Average_Delivery_Days",color="Green")
-   ax.set_title("TOP 10 Routes With Long Delivery Times")
-   ax.set_xlabel("Route ids")
-   ax.set_ylabel("Delivery Times")
-   plt.xticks(rotation=45)
-   return fig,df
+   
+   return df
    
 
 #BOX PLOT FOR THE AVERAGE DELIVERY TIME
@@ -54,34 +53,44 @@ def hist_plot1():
 
 
 def top10_delayed_plot():
-    top10_routes = route_df.sort_values(by="avg_time_hours", ascending=False).head(10)
-
-    fig, ax = plt.subplots(figsize=(8,6))
-    sns.barplot(
-        data=top10_routes,
-        x="route_id",
-        y="avg_time_hours",      
-        hue="route_id",
-        palette="Reds_r",  # red colour -top10_delayed_plots to emphasize delay
-        ax=ax
-    )
-    
-    ax.set_title("Top 10 Most Delayed Routes")
-    ax.set_xlabel("Route ID")
-    plt.xticks(rotation=45)
-    ax.set_ylabel("Average Delivery Time (hours)")
-    return fig
+   conn=create_connection()
+   query="""select r.route_id,r.origin,r.destination,avg(datediff(s.delivery_date,s.order_date))  as Average_Delivery_Days_Per_Route
+   from routes r join shipments s 
+   on r.origin =s.origin and r.destination=s.destination 
+   where s.order_date is not null and 
+         s.delivery_date is not null and s.status='Delivered'
+   group by r.route_id,r.origin,r.destination
+   order by Average_Delivery_Days_Per_Route desc"""
+   results,df=res_fn(conn,query)
+   df1=df.head(10)
+   fig,ax=plt.subplots(figsize=(8,6))
+   sns.barplot(data=df1,x="route_id",y="Average_Delivery_Days_Per_Route",color="Green")
+   ax.set_title("TOP 10 Routes With Long Delivery Times")
+   ax.set_xlabel("Route ids")
+   ax.set_ylabel("Delivery Times")
+   plt.xticks(rotation=45)
+   return fig
 #PLOT TO DISPLAY THE DELIVERY TIME Vs DISTANCE
 def del_time_dist():
 
-  fig, ax = plt.subplots(figsize=(8,6))
-  sns.scatterplot(data=route_df, x="distance_km", y="avg_time_hours", ax=ax)
-  sns.regplot(data=route_df, x="distance_km", y="avg_time_hours", scatter=False, color="red", ax=ax)
-  ax.set_title("Delivery Time vs Distance")
-  ax.set_xlabel("Distance (km)")
-  ax.set_ylabel("Delivery Time (hours)")
-  return fig
-
+   conn=create_connection()
+   query="""select r.route_id,r.origin,r.destination,r.distance_km,avg(datediff(s.delivery_date,s.order_date))  as Average_Delivery_Days_Per_Route
+   from routes r join shipments s 
+   on r.origin =s.origin and r.destination=s.destination 
+   where s.order_date is not null and 
+         s.delivery_date is not null and s.status='Delivered'
+   group by r.route_id,r.origin,r.destination,r.distance_km
+   order by Average_Delivery_Days_Per_Route desc"""
+   results,df=res_fn(conn,query)
+   #df1=df.head(10)
+   fig,ax=plt.subplots(figsize=(8,6))
+   sns.scatterplot(data=df,x="distance_km",y="Average_Delivery_Days_Per_Route",color="Green")
+   ax.set_title("Distance Vs Average_Delivery_Days_Per_Route")
+   ax.set_xlabel("Distance of the Route in km")
+   ax.set_ylabel("Average_Delivery_Days_Per_Route")
+   plt.xticks(rotation=45)
+   return fig,df
+ 
 #PLOT TO DISPLAY THE UNDER PERFORMING ROUTES
 def under_performing_routes():
    conn=create_connection()
@@ -91,8 +100,8 @@ def under_performing_routes():
     on s.origin = r.origin and s.destination =r.destination
     group by r.route_id,r.distance_km
     order by Efficiency  asc
-;
-  """
+
+    """
    results,df=res_fn(conn,query)
    fig,ax=plt.subplots(figsize=(8,6))
    sns.barplot(data=df.head(20),x="route_id",y="Efficiency")
@@ -104,9 +113,10 @@ def under_performing_routes():
 
 #COURIER PERFORMANCE
 def courier_performance():
-   shipments_df=pd.read_json(r"D:\VS_CODE\Logistics\shipments.json")
-   max_shipment_courier_id_top10=shipments_df.groupby('courier_id')['shipment_id'].count().sort_values(ascending=False).head(10).reset_index()
-   max_shipment_courier_id=shipments_df.groupby('courier_id')['shipment_id'].count().sort_values(ascending=False).reset_index()
+   conn=create_connection()
+   query="select  courier_id,count(shipment_id) from logistics.shipments group by courier_id order by count(shipment_id) desc"
+   results,df=res_fn(conn,query)
+   max_shipment_courier_id_top10=df.head(20)
    
    
    max_shipment_courier_id_top10.columns=["Courier_id","Shipment_count"]
@@ -119,27 +129,50 @@ def courier_performance():
    ax.set_xlabel("Courier ids")
    ax.set_ylabel("Number of shipments")
    plt.xticks(rotation=45)
-   return fig,max_shipment_courier_id
-
+   return fig,df
 #ON TIME DELIVERY
 def ontime_delivery():
    conn=create_connection()
    query="""  
-   with ontime_status as (
-select r.route_id,r.origin,r.destination,r.avg_time_hours as Average_delivery_hours,
-TIMESTAMPDIFF(HOUR,s.order_date,s.delivery_date) AS Actual_delivery_hours,
-case when TIMESTAMPDIFF(HOUR,s.order_date,s.delivery_date) <= r.avg_time_hours then "on-time" else "delayed"  end As "Delivery_status"
-from logistics.routes r join logistics.shipments s 
-on r.origin =s.origin and r.destination =s.destination
-where s.status="Delivered")
-
-select route_id,origin,destination,
-count(*) as total_shipments,
-sum(case when Delivery_status="on-time" then 1 else 0 end) as "on-time_shipments",
-round(((sum(case when Delivery_status="on-time" then 1 else 0 end))*100.0)/count(*),2) as `on-time-percentage` from ontime_status
-group by route_id,origin,destination
-order by `on-time-percentage` desc;
-
+   WITH ontime_status AS (
+    SELECT 
+        r.route_id,
+        r.origin,
+        r.destination,
+        r.avg_time_hours AS Average_delivery_hours,
+        TIMESTAMPDIFF(
+            HOUR,
+            o.timestamp,
+            d.timestamp
+        ) AS Actual_delivery_hours,
+        CASE 
+            WHEN TIMESTAMPDIFF(HOUR, o.timestamp, d.timestamp) <= r.avg_time_hours 
+            THEN 'on-time' 
+            ELSE 'delayed'  
+        END AS Delivery_status
+    FROM logistics.routes r
+    JOIN logistics.shipments s 
+        ON r.origin = s.origin 
+       AND r.destination = s.destination
+    JOIN logistics.shipment_tracking o 
+        ON s.shipment_id = o.shipment_id AND o.status = 'Order Placed'
+    JOIN logistics.shipment_tracking d 
+        ON s.shipment_id = d.shipment_id AND d.status = 'Delivered'
+    WHERE s.status = 'Delivered'
+)
+SELECT 
+    route_id,
+    origin,
+    destination,
+    COUNT(*) AS total_shipments,
+    SUM(CASE WHEN Delivery_status = 'on-time' THEN 1 ELSE 0 END) AS on_time_shipments,
+    ROUND(
+        (SUM(CASE WHEN Delivery_status = 'on-time' THEN 1 ELSE 0 END) * 100.0) / COUNT(*),
+        2
+    ) AS on_time_percentage
+FROM ontime_status
+GROUP BY route_id, origin, destination
+ORDER BY on_time_percentage DESC;
 """
    results,df=res_fn(conn,query)
      
@@ -158,14 +191,15 @@ def courier_rating_del_time():
 
 #TOP 10 COURIER RATINGS
 def courier_rating():
-   courier_staff=pd.read_csv(r"D:\VS_CODE\Logistics\courier_staff.csv").sort_values(by="rating",ascending=False).head(30)
-   print("courier staff df - top 10 ratings")
-   print(courier_staff)
+   conn=create_connection()
+   query="select * from courier_staff order by rating desc"
+   results,courier_staff=res_fn(conn,query)
+
    fig,ax=plt.subplots(figsize=(8,6))
-   sns.barplot(data=courier_staff,x="courier_id",y="rating",color="red")
+   sns.barplot(data=courier_staff.head(30),x="courier_id",y="rating",color="red")
    ax.set_title("Top 30 Courier ids with Good Rating")
    ax.set_xlabel("Courier_ids")
-   ax.set_ylabel("Average raing")
+   ax.set_ylabel("Rating")
    plt.xticks(rotation=45)
    return fig
 
