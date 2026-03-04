@@ -1,3 +1,4 @@
+
 from connection import create_connection
 from connection import res_fn
 import streamlit as st
@@ -8,14 +9,27 @@ import streamlit as st
 def shipment_id_textbox():
     shipment_id=st.text_input(label="Enter the shipment id here")
     if shipment_id:
-      st.success(f"The details for the shipment id:{shipment_id}")
+      
       conn=create_connection()
       
       query = f"SELECT * FROM shipments WHERE shipment_id = '{shipment_id}'"
 
       results,df1=res_fn(conn,query)
-      st.dataframe(df1)
-    
+      if not df1.empty:
+        st.success(f"The details for the shipment id:{shipment_id}")
+        st.dataframe(df1)
+
+        st.success(f"Further details for the shipment id:{shipment_id}")
+        conn=create_connection()
+      
+        query = f"SELECT * FROM shipment_tracking WHERE shipment_id = '{shipment_id}'"
+
+        results,df1=res_fn(conn,query)
+        st.dataframe(df1)
+      else:
+         st.error(f"There are no shipment records for the shipment id:{shipment_id} ")
+      
+      
       
 #GET THE UNIQUE STATUS OF THE SHIPMENT RECORDS
 def status():
