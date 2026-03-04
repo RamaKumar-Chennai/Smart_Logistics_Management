@@ -185,10 +185,10 @@ elif main_choice=="Analytical Views":
 #Average delivery time per route,Most delayed routes,Delivery time vs distance comparison,Under Performing Routes Relative To Distance
       av1_sub_choice=st.radio("Enter your choice here",["Average delivery time per route","Most delayed routes","Delivery time vs distance comparison","Under Performing Routes Relative To Distance"],index=None)
       if av1_sub_choice=="Average delivery time per route":
-         fig,df=aver_del_time_per_route()
+         df=aver_del_time_per_route()
          st.success("Average delivery time per route ")
          st.dataframe(df)
-         st.pyplot(fig)
+        
 
          st.header("Box plot for Average Delivery times across routes")
          fig1=box_plot1()
@@ -205,7 +205,9 @@ elif main_choice=="Analytical Views":
         st.pyplot(fig3)
       
       elif av1_sub_choice=="Delivery time vs distance comparison" :
-         fig4=del_time_dist()
+         fig4,df=del_time_dist()
+         st.success("Delivery time vs distance comparison ")
+         st.dataframe(df)
          st.pyplot(fig4)
       elif av1_sub_choice=="Under Performing Routes Relative To Distance" :
          fig,df=under_performing_routes()
@@ -297,6 +299,11 @@ elif main_choice=="Analytical Views":
           st.success("High-traffic warehouse cities")
           st.dataframe(df)
           st.pyplot(fig)
+
+         
+
+
+
 
          
 
